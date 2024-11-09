@@ -2,12 +2,20 @@ pipeline {
     agent {node { label 'java-slave' }}
     environment {
         APP_NAME = 'java_hello_world'
-        DOCKER_IMAGE = 'spring-boot-app:latest'  // Update to your Docker Hub username
+        DOCKER_IMAGE = ''  // Update to your Docker Hub username
+        GIT_COMMIT_ID = '' // Placeholder for commit ID, will be set dynamically
+        DOCKER_CREDENTIALS_ID = 'eddabcf8-673d-4395-a9d1-14077f64aa08' // Replace with your Jenkins credential ID
     }
     stages {
         stage('Checkout') {
             steps {
                 checkout scm
+                script {
+                    // Retrieve the short commit ID
+                    GIT_COMMIT_ID = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
+                    // Define the Docker image with the commit ID suffix
+                    DOCKER_IMAGE = "tanhank2k1/${APP_NAME}:${GIT_COMMIT_ID}"
+                }
             }
         }
         stage('Build') {
@@ -23,25 +31,20 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 script {
-                     sh "docker build -t ${DOCKER_IMAGE} ."
-                }
-            }
-        }
-        stage('Deploy') {
-            steps {
-                script {
-                    // Stop and remove the old container if it exists
-                    sh """
-                    if [ \$(docker ps -q -f name=${APP_NAME}) ]; then
-                        docker stop ${APP_NAME}
-                        docker rm ${APP_NAME}
-                    fi
-                    """
+                     // Authenticate with Docker using credentials
+                     withCredentials([usernamePassword(credentialsId: DOCKER_CREDENTIALS_ID, usernameVariable: 'DOCKER_USERNAME', passwordVariable: 'DOCKER_PASSWORD')]) {
+                         // Login to Docker
+                         sh "echo ${DOCKER_PASSWORD} | docker login -u ${DOCKER_USERNAME} --password-stdin"
 
-                    // Run the new container
-                    sh """
-                    docker run -d -p 8081:80 --name ${APP_NAME} ${DOCKER_IMAGE}
-                    """
+                         // Build the Docker image with the commit ID tag
+                         sh "docker build -t ${DOCKER_IMAGE} ."
+
+                         // Push the Docker image to the repository
+                         sh "docker push ${DOCKER_IMAGE}"
+
+                         // Logout of Docker
+                         sh "docker logout"
+                     }
                 }
             }
         }
