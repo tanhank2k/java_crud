@@ -36,7 +36,7 @@ environment variable when running the container.
 mvnw spring-boot:build-image -Dspring-boot.build-image.imageName=io.bootify/crud-app
 ```
 
-## Further readings
+## Further readings 
 
 * [Maven docs](https://maven.apache.org/guides/index.html)  
 * [Spring Boot reference](https://docs.spring.io/spring-boot/docs/current/reference/htmlsingle/)  
